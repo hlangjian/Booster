@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.VisualStudio.TestTools.UnitTesting.Logging;
 
 namespace Booster.Core.Testing;
 
@@ -21,7 +22,7 @@ public class UnitTest1
 
         var runner = container.CreateDelegate<Action>((Animal animal, Dog dog) =>
         {
-            Console.WriteLine($"animal name = {animal.Name} and dog name = {dog.Name}");
+            Logger.LogMessage($"animal name = {animal.Name} and dog name = {dog.Name}");
         });
 
         runner();
@@ -38,10 +39,27 @@ public class UnitTest1
 
         var runner = container.CreateDelegate<Action>((Animal animal, Dog dog) =>
         {
-            Console.WriteLine($"animal name = {animal.Name} and dog name = {dog.Name}");
+            Logger.LogMessage($"animal name = {animal.Name} and dog name = {dog.Name}");
         });
 
         runner();
+    }
+
+    [TestMethod]
+    public void 支持返回值()
+    {
+        var builder = new ServiceContainerBuilder();
+        builder.AddService<Animal>(new Animal { Name = "Animal" });
+        builder.AddService<Dog>(new Dog { Name = "Dog" });
+
+        var container = new ServiceContainer(builder);
+
+        var runner = container.CreateDelegate<Func<string>>((Animal animal, Dog dog) =>
+        {
+            return $"animal name = {animal.Name} and dog name = {dog.Name}";
+        });
+
+        Logger.LogMessage(runner());
     }
 }
 

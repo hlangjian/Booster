@@ -1,5 +1,6 @@
 ﻿using System.Text;
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Text;
 
 namespace Booster.Core.Generator;
@@ -14,34 +15,51 @@ public class Class1 : IIncrementalGenerator
 
         var onConfigs = context.SyntaxProvider.ForAttributeWithMetadataName(
             "Booster.Core.OnConfigAttribute",
-            (node, token) => true,
-            (ctx, token) => ctx.TargetSymbol
+            (node, token) => node is MethodDeclarationSyntax method && method.Body != null,
+            (ctx, token) =>
+            {
+                var method = ctx.TargetSymbol as IMethodSymbol;
+                return new FunctionInfo(method!.Name, method.ContainingType.ToDisplayString(), method.IsStatic);
+            }
         );
 
         var onStartups = context.SyntaxProvider.ForAttributeWithMetadataName(
             "Booster.Core.OnStartAttribute",
-            (node, token) => true,
-            (ctx, token) => ctx.TargetSymbol
+            (node, token) => node is MethodDeclarationSyntax method && method.Body != null,
+            (ctx, token) =>
+            {
+                var method = ctx.TargetSymbol as IMethodSymbol;
+                return new FunctionInfo(method!.Name, method.ContainingType.ToDisplayString(), method.IsStatic);
+            }
         );
 
         context.RegisterSourceOutput(onConfigs.Collect().Combine(onStartups.Collect()), (ctx, sources) =>
         {
             var (onConfigs, onStartups) = sources;
 
+            var startups = onStartups.Select(o =>
+            {
+                if (o.IsStatic) return $"{o.TypeName}.{o.Name}";
+                return $"app.Services.GetRequiredKeyedService<{o.TypeName}>(null).{o.Name}";
+            }).ToArray();
+
             ctx.AddSource("CorePlugin.g.cs", SourceText.From(
                 $$"""
                 using Microsoft.AspNetCore.Builder;
+                using Booster.Core;
 
                 namespace Booster;
 
                 public partial class BoosterPlugins {
 
                     public Action<WebApplication> CorePlugin(WebApplicationBuilder builder){
-                        Action<WebApplicationBuilder>[] onConfigHooks = [{{string.Join(",", onConfigs.Select(o => $"{o.ContainingType.ToDisplayString()}.{o.Name}"))}}];
-                        foreach(var hook in onConfigHooks) hook(builder);
+
+                        var boosterOnConfig = new BoosterOnConfig(builder);
+                        boosterOnConfig.Run({{string.Join(",", onConfigs.Select(o => $"{o.TypeName}.{o.Name}"))}});
+
                         return app => {
-                            Action<WebApplication>[] onStartupHooks = [{{string.Join(",", onStartups.Select(o => $"{o.ContainingType.ToDisplayString()}.{o.Name}"))}}];
-                            foreach(var hook in onStartupHooks) hook(app);
+                            var boosterOnStartup = new BoosterOnStartup(builder.Services, app);
+                            boosterOnStartup.Run({{string.Join(",", startups)}});
                         };
                     }
                 }
@@ -98,3 +116,5 @@ public class Class1 : IIncrementalGenerator
         ));
     }
 }
+
+public record FunctionInfo(string Name, string TypeName, bool IsStatic);

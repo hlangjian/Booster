@@ -142,7 +142,7 @@ public class SingletonServiceFactoryContainer : IServiceContainer
 
     private readonly ServiceContainer container;
 
-    public SingletonServiceFactoryContainer(IServiceCollection services, IKeyedServiceProvider provider)
+    public SingletonServiceFactoryContainer(IServiceCollection services, IServiceProvider provider)
     {
         var factories = services
             .Where(o => o.Lifetime == ServiceLifetime.Singleton)
@@ -165,7 +165,7 @@ public class ScopedServiceFactoryContainer : IServiceContainer
 
     private readonly ServiceContainer container;
 
-    public ScopedServiceFactoryContainer(IServiceCollection services, IKeyedServiceProvider provider)
+    public ScopedServiceFactoryContainer(IServiceCollection services, IServiceProvider provider)
     {
         var factories = services
             .Where(o => o.Lifetime == ServiceLifetime.Scoped)
@@ -188,7 +188,7 @@ public class TransientServiceFactoryContainer : IServiceContainer
 
     private readonly ServiceContainer container;
 
-    public TransientServiceFactoryContainer(IServiceCollection services, IKeyedServiceProvider provider)
+    public TransientServiceFactoryContainer(IServiceCollection services, IServiceProvider provider)
     {
         var factories = services
             .Where(o => o.Lifetime == ServiceLifetime.Transient)
